@@ -1,0 +1,45 @@
+name: Validate Sales CSV
+
+on:
+  pull_request:
+
+jobs:
+  validate-sales:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate sales CSV
+        run: |
+          set -e
+          FILE="q3_sales_clean.csv"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: $FILE not found"
+            exit 1
+          fi
+          python3 - <<'PY'
+          import csv, sys
+
+          path = "q3_sales_clean.csv"
+          expected_headers = ["Region", "Rep", "Units", "Unit Price", "Revenue"]
+
+          with open(path, newline="", encoding="utf-8") as f:
+              try:
+                  reader = csv.reader(f)
+                  rows = list(reader)
+              except Exception as exc:
+                  print(f"ERROR: CSV failed to parse: {exc}")
+                  sys.exit(1)
+
+          if not rows:
+              print("ERROR: CSV is empty")
+              sys.exit(1)
+
+          header = rows[0]
+          if header != expected_headers:
+              print(f"ERROR: unexpected headers {header}; expected {expected_headers}")
+              sys.exit(1)
+
+          print(f"OK: CSV parsed cleanly with {len(rows) - 1} data row(s) and expected headers: {header}")
+          PY
